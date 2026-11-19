@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Monitoring Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="toolbar">
+  <div class="brand"><span class="brand-dot"></span><h1>Network Monitor</h1>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="incidents">Incidents <span class="tab-count" id="incidentCount" hidden></span></button>
+      <button class="tab" data-tab="history">History</button>
+    </nav>
+  </div>
+  <div class="controls">
+    <label class="switch" title="Automatically re-check all devices">
+      <input type="checkbox" id="autoToggle"><span class="slider"></span><span>Auto</span>
+    </label>
+    <select id="intervalSelect" title="Auto-check interval">
+      <option value="10">10 s</option><option value="30">30 s</option>
+      <option value="60">1 min</option><option value="300">5 min</option>
+    </select>
+    <button class="btn primary" id="refreshBtn">&#8635; Refresh</button>
+    <button class="btn" id="scanBtn" title="Find live devices on your subnet">Scan my network</button>
+    <button class="btn" id="addBtn">+ Add device</button>
+    <button class="btn" id="themeBtn" title="Toggle light / dark">&#9788;</button>
+    <a href="{{ url_for('auth.logout') }}" class="btn" id="logoutBtn" title="Log out">Logout</a>>
+  </div>
+</header>
+
+<main id="tab-dashboard">
+  <!-- Row 1: stat panels -->
+  <div class="row top">
+    <section class="panel">
+      <h3 class="ptitle"><span>Network</span></h3>
+      <div class="stats three">
+        <div class="stat"><div class="ico">&#10003;</div><b class="c-online" id="sOnline">–</b><small>Online</small></div>
+        <div class="stat"><div class="ico">!</div><b class="c-degraded" id="sDegraded">–</b><small>Degraded</small></div>
+        <div class="stat"><div class="ico">&#10005;</div><b class="c-offline" id="sOffline">–</b><small>Offline</small></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h3 class="ptitle"><span>Devices</span></h3>
+      <div class="stats three">
+        <div class="stat"><div class="ico">&#9638;</div><b class="c-online" id="sTotal">–</b><small>Total</small></div>
+        <div class="stat"><div class="ico">&#9889;</div><b class="c-online" id="sPing">–</b><small>Avg ping</small></div>
+        <div class="stat"><div class="ico">&#9829;</div><b class="c-online" id="sHealth">–</b><small>Health</small></div>
+      </div>
+    </section>
+    <section class="panel wide">
+      <h3 class="ptitle"><span>Monitoring</span></h3>
+      <div class="sparks">
+        <div class="spark"><div class="spark-head"><span>Ping</span><b id="spPingV">–</b></div><canvas id="spPing" height="70" data-h="70"></canvas></div>
+        <div class="spark"><div class="spark-head"><span>Packet loss</span><b id="spLossV">–</b></div><canvas id="spLoss" height="70" data-h="70"></canvas></div>
+        <div class="spark"><div class="spark-head"><span>Devices up</span><b id="spUpV">–</b></div><canvas id="spUp" height="70" data-h="70"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Row 2: gateway -->
+  <section class="panel">
+    <h3 class="ptitle"><span>Gateway</span></h3>
+    <div class="info-row" id="gwInfo"></div>
+    <div class="row three-charts">
+      <div><h3 class="ptitle sub"><span>Gateway Latency / Loss</span></h3><canvas id="gwChart" height="170" data-h="170"></canvas><div class="legend" id="gwLegend"></div></div>
+      <div><h3 class="ptitle sub"><span>All Devices Latency / Loss</span></h3><canvas id="avgChart" height="170" data-h="170"></canvas><div class="legend" id="avgLegend"></div></div>
+      <div><h3 class="ptitle sub"><span>Devices Up</span></h3><canvas id="lossChart" height="170" data-h="170"></canvas><div class="legend" id="lossLegend"></div></div>
+    </div>
+  </section>
+
+  <!-- Row 3: devices -->
+  <div class="device-bar">
+    <input type="search" id="searchInput" placeholder="Search name or IP…">
+    <select id="statusFilter">
+      <option value="">All statuses</option><option value="online">Online</option>
+      <option value="degraded">Degraded</option><option value="offline">Offline</option>
+      <option value="unknown">Not checked</option>
+    </select>
+  </div>
+  <div class="device-grid" id="deviceGrid"></div>
+  <p class="empty" id="deviceEmpty" hidden>No devices found. Click “Scan my network” or “Add device” to get started.</p>
+</main>
+
+<main id="tab-incidents" hidden>
+  <section class="panel">
+    <h3 class="ptitle"><span>Incident log</span></h3>
+    <div class="stats three">
+      <div class="stat"><div class="ico">&#9201;</div><b id="iDowntime" class="c-online">–</b><small>Downtime today</small></div>
+      <div class="stat"><div class="ico">&#9888;</div><b id="iLongest" class="c-online">–</b><small>Longest outage</small><small class="stat-sub" id="iLongestSub"></small></div>
+      <div class="stat"><div class="ico">&#10005;</div><b id="iCount" class="c-online">–</b><small>Incidents</small><small class="stat-sub" id="iCountSub"></small></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3 class="ptitle"><span>By device</span></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Device</th><th>Downtime today</th><th>Longest outage</th><th>Incidents</th></tr></thead>
+        <tbody id="incidentDevices"></tbody>
+      </table>
+      <p class="empty" id="incidentDevicesEmpty" hidden>No devices yet.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3 class="ptitle"><span>Outages</span></h3>
+    <div class="panel-head">
+      <select id="incidentDevice"><option value="">All devices</option></select>
+      <span class="hint" id="incidentHint"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Device</th><th>IP / Host</th><th>Went down</th><th>Recovered</th><th>Duration</th><th>Reason</th></tr></thead>
+        <tbody id="incidentRows"></tbody>
+      </table>
+      <p class="empty" id="incidentEmpty" hidden>No outages recorded — every device that was checked has stayed up. 🎉</p>
+    </div>
+  </section>
+</main>
+
+<main id="tab-history" hidden>
+  <section class="panel">
+    <h3 class="ptitle"><span>Monitoring history</span></h3>
+    <div class="panel-head">
+      <select id="historyStatus">
+        <option value="">All statuses</option><option value="online">Online</option>
+        <option value="degraded">Degraded</option><option value="offline">Offline</option>
+      </select>
+      <span class="spacer"></span>
+      <a class="btn" href="/api/export/history.csv">&#11015; Export CSV</a>
+      <button class="btn danger" id="clearHistoryBtn">Clear history</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Device</th><th>IP / Host</th><th>Status</th><th>Ping</th><th>Loss</th></tr></thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+      <p class="empty" id="historyEmpty" hidden>No history yet — press Refresh to run a check.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="deviceDialog">
+  <form method="dialog" id="deviceForm" novalidate>
+    <h2 id="dialogTitle">Add device</h2>
+    <label>Name<input id="fName" maxlength="60" placeholder="e.g. Office Router" required></label>
+    <small class="err" id="eName"></small>
+    <label>IP address or hostname<input id="fHost" placeholder="192.168.1.1" required></label>
+    <small class="err" id="eHost"></small>
+    <label>Type
+      <select id="fType">
+        {% for t in device_types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="fEnabled" checked> Include in automatic checks</label>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="dialogCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="scanDialog">
+  <div class="scan-body">
+    <h2>Scan my network</h2>
+    <p class="hint">Sends one ping to every address in the subnet and lists the devices that answer.
+      Devices that block ping won’t appear. Only scan networks you own or are allowed to test.</p>
+    <div class="scan-form">
+      <label>Subnet (CIDR)<input id="scanSubnet" placeholder="192.168.1.0/24" spellcheck="false" autocomplete="off"></label>
+      <button type="button" class="btn primary" id="scanStart" disabled>Start scan</button>
+    </div>
+    <label class="check"><input type="checkbox" id="scanAuth"> I own this network or have permission to test it</label>
+    <small class="err" id="eScan"></small>
+    <div class="scan-progress" id="scanProgress" hidden>
+      <div class="bar"><span id="scanBar"></span></div>
+    </div>
+    <div class="hint" id="scanStatus" aria-live="polite"></div>
+    <div class="table-wrap scan-results" id="scanResults" hidden>
+      <table>
+        <thead><tr><th>IP address</th><th>Name</th><th>MAC</th><th>Ping</th><th></th></tr></thead>
+        <tbody id="scanRows"></tbody>
+      </table>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="scanAddAll" disabled>Add all new</button>
+      <button type="button" class="btn" id="scanClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toasts" aria-live="polite"></div>
+<script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

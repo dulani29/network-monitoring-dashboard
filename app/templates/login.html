@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Login – Network Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="toolbar">
+    <div class="brand">
+        <span class="brand-dot"></span>
+        <h1>Network Monitor</h1>
+        <nav class="tabs">
+            <button class="tab" data-tab="login">Login</button>
+        </nav>
+    </div>
+</header>
+
+<main class="login-container">
+    <h2>Login</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('auth.login') }}">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required autofocus>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+        <button type="submit" class="btn primary">Log In</button>
+    </form>
+
+    <p class="login-links">
+        No account? <a href="{{ url_for('auth.register') }}">Register here</a>
+    </p>
+</main>
+
+<script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
